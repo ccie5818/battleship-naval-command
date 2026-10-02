@@ -6,6 +6,6 @@ The app uses vanilla HTML, CSS, and JavaScript modules. `engine.js` owns placeme
 
 Run `npm start` and open http://localhost:8000. Node 20+ and Python 3 are sufficient; no build step or backend is required. Run tests with `npm test`.
 
-The baseline opponent chooses randomly among untried cells. It remembers every shot to avoid repeats. It receives only shot results and has no access to the hidden player board.
+The opponent hunts untried squares using checkerboard parity, then explores neighboring squares after a hit. A second aligned hit establishes orientation so it extends both ends; sinking a vessel clears those resolved hits and resumes hunting or another unresolved target. It remembers every shot and receives only shot results, never the hidden player board.
 
 See [the defect log](BUGS.md). This project was designed, implemented, and tested with OpenAI Codex AI assistance.

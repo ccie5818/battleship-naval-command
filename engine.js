@@ -13,7 +13,7 @@ export function place(b,start,length,vertical=false) {
 }
 export function randomFleet(rng=Math.random) {
   const b=board();
-  for(const length of FLEET) { while(!place(b,Math.floor(rng()*100),length,rng()<.5)) {} }
+  for(const [fleetId,length] of FLEET.entries()) { while(!place(b,Math.floor(rng()*100),length,rng()<.5)) {} b.ships.at(-1).fleetId=fleetId; }
   return b;
 }
 export function fire(b,cell) {
@@ -25,7 +25,36 @@ export function fire(b,cell) {
   return {cell,hit:!!ship,sunk,sunkCells:sunk?[...ship.cells]:[],win:b.ships.length===5&&b.ships.every(s=>s.cells.every(c=>b.shots.has(c)))};
 }
 export class AI {
-  constructor(rng=Math.random){this.rng=rng;this.tried=new Set();}
-  next(){const options=Array.from({length:100},(_,i)=>i).filter(c=>!this.tried.has(c));const cell=options[Math.floor(this.rng()*options.length)];this.tried.add(cell);return cell;}
-  observe(result){}
+  constructor(rng=Math.random){this.rng=rng;this.tried=new Set();this.hits=new Set();}
+  neighbors(c){return [c-10,c+10,...(c%10?[c-1]:[]),...(c%10<9?[c+1]:[])].filter(x=>x>=0&&x<100);}
+  targets(){
+    const targets=[];
+    for(const anchor of this.hits){
+      const horizontal=this.neighbors(anchor).find(c=>this.hits.has(c)&&Math.floor(c/10)===Math.floor(anchor/10));
+      const vertical=this.neighbors(anchor).find(c=>this.hits.has(c)&&c%10===anchor%10);
+      if(horizontal!==undefined||vertical!==undefined){
+        const step=horizontal!==undefined?1:10;
+        let low=anchor,high=anchor;
+        const sameLine=c=>c>=0&&c<100&&(step===10||Math.floor(c/10)===Math.floor(anchor/10));
+        while(sameLine(low-step)&&this.hits.has(low-step))low-=step;
+        while(sameLine(high+step)&&this.hits.has(high+step))high+=step;
+        for(const c of [low-step,high+step])if(sameLine(c))targets.push(c);
+      }else targets.push(...this.neighbors(anchor));
+    }
+    return [...new Set(targets)].filter(c=>!this.tried.has(c));
+  }
+  next(){
+    const targets=this.targets();
+    const untried=Array.from({length:100},(_,i)=>i).filter(c=>!this.tried.has(c));
+    const parity=untried.filter(c=>(Math.floor(c/10)+c%10)%2===0);
+    const options=targets.length?targets:parity.length?parity:untried;
+    if(!options.length)return null;
+    const cell=options[Math.floor(this.rng()*options.length)];this.tried.add(cell);return cell;
+  }
+  observe(result){
+    if(!result)return;
+    this.tried.add(result.cell);
+    if(result.hit)this.hits.add(result.cell);
+    if(result.sunk)for(const c of result.sunkCells)this.hits.delete(c);
+  }
 }
